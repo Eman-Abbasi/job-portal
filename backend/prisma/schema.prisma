@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("user") // "user" or "admin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  applications    Application[]
+  bookmarks       Bookmark[]
+  notInterested   NotInterested[]
+  resumes         Resume[]
+  postedJobs      Job[]           @relation("JobPoster")
+
+  @@map("users")
+}
+
+model Job {
+  id              String   @id @default(uuid())
+  title           String
+  company         String
+  location        String
+  salary          String
+  jobType         String   // "full-time", "part-time", "contract"
+  category        String
+  experienceLevel String   // "entry", "mid", "senior", "executive"
+  description     String   @db.Text
+  postedBy        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  poster          User           @relation("JobPoster", fields: [postedBy], references: [id], onDelete: Cascade)
+  applications    Application[]
+  bookmarks       Bookmark[]
+  notInterested   NotInterested[]
+
+  @@map("jobs")
+}
+
+model Application {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  status    String   @default("pending") // "pending", "accepted", "rejected"
+  appliedAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@map("applications")
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@map("bookmarks")
+}
+
+model NotInterested {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@map("not_interested")
+}
+
+model Resume {
+  id         String   @id @default(uuid())
+  userId     String
+  filename   String
+  filepath   String
+  uploadedAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("resumes")
+}
