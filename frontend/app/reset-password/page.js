@@ -1,24 +1,37 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../../components/Navbar';
 import { authAPI } from '../../lib/api';
-import { setToken, setUser } from '../../lib/auth';
 
-export default function SignupPage() {
+export default function ResetPasswordPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
     password: '',
     confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [token, setToken] = useState('');
+  const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    const tokenParam = searchParams.get('token');
+    const emailParam = searchParams.get('email');
+    
+    if (!tokenParam || !emailParam) {
+      setError('Invalid reset link. Please request a new password reset.');
+    } else {
+      setToken(tokenParam);
+      setEmail(emailParam);
+    }
+  }, [searchParams]);
 
   const handleChange = (e) => {
     setFormData({
@@ -42,23 +55,58 @@ export default function SignupPage() {
       return;
     }
 
+    if (!token || !email) {
+      setError('Invalid reset link');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await authAPI.signup({
-        name: formData.name,
-        email: formData.email,
+      await authAPI.resetPassword({
+        token,
+        email,
         password: formData.password,
       });
-      setToken(response.data.token);
-      setUser(response.data.user);
-      router.push('/jobs');
+      setSuccess(true);
+      setTimeout(() => {
+        router.push('/login');
+      }, 3000);
     } catch (err) {
-      setError(err.response?.data?.error || 'Signup failed. Please try again.');
+      setError(err.response?.data?.error || 'Failed to reset password. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-dark-bg">
+        <Navbar />
+        <div className="container mx-auto px-4 py-16">
+          <div className="max-w-md mx-auto">
+            <div className="bg-dark-card border border-dark-border rounded-lg p-8 text-center">
+              <div className="mb-4">
+                <svg className="w-16 h-16 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold text-white mb-4">Password Reset Successful!</h1>
+              <p className="text-dark-text-muted mb-6">
+                Your password has been reset successfully. Redirecting to login page...
+              </p>
+              <Link
+                href="/login"
+                className="text-blue-500 hover:text-blue-400 transition-colors"
+              >
+                Go to Login →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-dark-bg">
@@ -66,7 +114,10 @@ export default function SignupPage() {
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-md mx-auto">
           <div className="bg-dark-card border border-dark-border rounded-lg p-8">
-            <h1 className="text-3xl font-bold mb-6 text-white">Sign Up</h1>
+            <h1 className="text-3xl font-bold mb-2 text-white">Reset Password</h1>
+            <p className="text-dark-text-muted mb-6">
+              Enter your new password below.
+            </p>
             
             {error && (
               <div className="bg-red-900/30 border border-red-700 text-red-200 px-4 py-3 rounded-lg mb-4">
@@ -76,38 +127,8 @@ export default function SignupPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-dark-text-muted mb-2">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-dark-surface border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-dark-text-muted mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="w-full bg-dark-surface border border-dark-border rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
-              </div>
-
-              <div>
                 <label htmlFor="password" className="block text-sm font-medium text-dark-text-muted mb-2">
-                  Password
+                  New Password
                 </label>
                 <div className="relative">
                   <input
@@ -117,6 +138,7 @@ export default function SignupPage() {
                     value={formData.password}
                     onChange={handleChange}
                     required
+                    minLength={6}
                     className="w-full bg-dark-surface border border-dark-border rounded-lg px-4 py-2 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                   <button
@@ -140,7 +162,7 @@ export default function SignupPage() {
 
               <div>
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-dark-text-muted mb-2">
-                  Confirm Password
+                  Confirm New Password
                 </label>
                 <div className="relative">
                   <input
@@ -150,6 +172,7 @@ export default function SignupPage() {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     required
+                    minLength={6}
                     className="w-full bg-dark-surface border border-dark-border rounded-lg px-4 py-2 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                   <button
@@ -173,19 +196,21 @@ export default function SignupPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !token || !email}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors"
               >
-                {loading ? 'Creating account...' : 'Sign Up'}
+                {loading ? 'Resetting Password...' : 'Reset Password'}
               </button>
             </form>
 
-            <p className="mt-6 text-center text-dark-text-muted">
-              Already have an account?{' '}
-              <Link href="/login" className="text-blue-500 hover:text-blue-400">
-                Login
+            <div className="mt-6 text-center">
+              <Link
+                href="/login"
+                className="text-sm text-blue-500 hover:text-blue-400 transition-colors"
+              >
+                ← Back to Login
               </Link>
-            </p>
+            </div>
           </div>
         </div>
       </div>
